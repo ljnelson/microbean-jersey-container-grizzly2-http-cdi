@@ -69,9 +69,9 @@ class Producers {
 
   @Produces
   @Dependent
-  private static final HttpServer produceHttpServer(@ConfigurationValue("host") final String host,
-                                                    @ConfigurationValue("port") final int port,
-                                                    @ConfigurationValue("contextPath") final String contextPath,
+  private static final HttpServer produceHttpServer(@ConfigurationValue(value = "host", defaultValue = "localhost") final String host,
+                                                    @ConfigurationValue(value = "port", defaultValue = "8080") final int port,
+                                                    @ConfigurationValue(value = "contextPath", defaultValue = "/") final String contextPath,
                                                     final Instance<GrizzlyHttpContainer> handlerInstance,
                                                     @ConfigurationValue("secure") final boolean secure,
                                                     final Instance<SSLEngineConfigurator> sslEngineConfiguratorInstance) {
