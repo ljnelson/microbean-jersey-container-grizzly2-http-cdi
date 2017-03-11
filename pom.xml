@@ -260,6 +260,7 @@
 
     <!-- maven-javadoc-plugin properties; see https://maven.apache.org/plugins/maven-javadoc-plugin/javadoc-mojo.html -->
     <links>http://docs.jboss.org/cdi/api/2.0-PFD/,http://docs.oracle.com/javaee/7/api/,https://grizzly.java.net/docs/2.3/apidocs/</links>
+    <show>private</show>
 
     <!-- Weld logging; see https://docs.jboss.org/weld/reference/latest/en-US/html/logging.html#_weld_se -->
     <org.jboss.logging.provider>slf4j</org.jboss.logging.provider>
