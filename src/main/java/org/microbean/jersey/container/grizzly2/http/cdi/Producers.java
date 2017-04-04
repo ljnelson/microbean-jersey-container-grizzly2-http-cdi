@@ -39,6 +39,9 @@ import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 
 import org.glassfish.jersey.server.ContainerFactory;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * A class housing <a
  * href="http://docs.jboss.org/cdi/spec/2.0.EDR2/cdi-spec.html#producer_method">producer
@@ -51,6 +54,8 @@ import org.glassfish.jersey.server.ContainerFactory;
 @ApplicationScoped
 class Producers {
 
+  private static final Logger logger = LoggerFactory.getLogger(Producers.class);
+  
   private Producers() {
     super();
   }
@@ -58,23 +63,32 @@ class Producers {
   @Produces
   @Dependent
   private static final GrizzlyHttpContainer produceGrizzlyHttpContainer(final Instance<Application> applicationInstance) {
+    if (logger.isTraceEnabled()) {
+      logger.trace("ENTRY {} {} {}", Producers.class.getName(), "produceGrizzlyHttpContainer", applicationInstance);
+    }
     final GrizzlyHttpContainer returnValue;
     if (applicationInstance == null || applicationInstance.isUnsatisfied()) {
       returnValue = null;
     } else {
       returnValue = ContainerFactory.createContainer(GrizzlyHttpContainer.class, applicationInstance.get());
     }
+    if (logger.isTraceEnabled()) {
+      logger.trace("EXIT {} {} {}", Producers.class.getName(), "produceGrizzlyHttpContainer", returnValue);
+    }
     return returnValue;
   }
 
   @Produces
   @Dependent
-  private static final HttpServer produceHttpServer(@ConfigurationValue(value = "host", defaultValue = "localhost") final String host,
+  private static final HttpServer produceHttpServer(@ConfigurationValue(value = "host", defaultValue = "0.0.0.0") final String host,
                                                     @ConfigurationValue(value = "port", defaultValue = "8080") final int port,
                                                     @ConfigurationValue(value = "contextPath", defaultValue = "/") final String contextPath,
                                                     final Instance<GrizzlyHttpContainer> handlerInstance,
                                                     @ConfigurationValue("secure") final boolean secure,
                                                     final Instance<SSLEngineConfigurator> sslEngineConfiguratorInstance) {
+    if (logger.isTraceEnabled()) {
+      logger.trace("ENTRY {} {} {}, {}, {}, {}, {}, {}", Producers.class.getName(), "produceHttpServer", host, port, contextPath, handlerInstance, secure, sslEngineConfiguratorInstance);
+    }
     final HttpServer returnValue;
     if (handlerInstance == null || handlerInstance.isUnsatisfied()) {
       returnValue = null;
@@ -92,6 +106,9 @@ class Producers {
         sslEngineConfigurator = sslEngineConfiguratorInstance.get();
       }
       returnValue = GrizzlyHttpServerFactory.createHttpServer(uri, handlerInstance.get(), secure, sslEngineConfigurator, false);
+    }
+    if (logger.isTraceEnabled()) {
+      logger.trace("EXIT {} {} {}", Producers.class.getName(), "produceHttpServer", returnValue);
     }
     return returnValue;
   }
