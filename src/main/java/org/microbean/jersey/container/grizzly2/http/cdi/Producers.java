@@ -138,7 +138,7 @@ class Producers {
    * may be {@code null} in which case {@code 0.0.0.0} will be used
    * instead
    *
-   * @param port the port to listen on; {@code 80} by default
+   * @param port the port to listen on; {@code 8080} by default
    *
    * @param contextPath where the resulting web application should be
    * rooted; may be {@code null} in which case {@code /} will be used
@@ -175,7 +175,7 @@ class Producers {
   @Produces
   @Dependent
   private static final HttpServer produceHttpServer(@ConfigurationValue(value = "host", defaultValue = "0.0.0.0") final String host,
-                                                    @ConfigurationValue(value = "port", defaultValue = "80") final int port,
+                                                    @ConfigurationValue(value = "port", defaultValue = "8080") final int port,
                                                     @ConfigurationValue(value = "contextPath", defaultValue = "/") final String contextPath,
                                                     final Instance<GrizzlyHttpContainer> handlerInstance,
                                                     @ConfigurationValue("secure") final boolean secure,
