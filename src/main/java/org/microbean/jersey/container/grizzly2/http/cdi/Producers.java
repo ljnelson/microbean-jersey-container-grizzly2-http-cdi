@@ -119,6 +119,9 @@ class Producers {
       returnValue = null;
     } else {
       returnValue = ContainerFactory.createContainer(GrizzlyHttpContainer.class, applicationInstance.get());
+      if (logger.isInfoEnabled()) {
+        logger.info("Created GrizzlyHttpContainer: {}", returnValue);
+      }
     }
     if (logger.isTraceEnabled()) {
       logger.trace("EXIT {} {} {}", Producers.class.getName(), "produceGrizzlyHttpContainer", returnValue);
@@ -133,6 +136,13 @@ class Producers {
    * unsatisfied}.
    *
    * <p>This method may return {@code null}.</p>
+   *
+   * <p>Note that the the supplied {@link Instance} containing a
+   * {@link GrizzlyHttpContainer} may be non-{@code null} and {@link
+   * Instance#isUnsatisfied() not unsatisfied} and yet may still
+   * produce a {@code null} {@link GrizzlyHttpContainer}.  In this
+   * case, a suitable warning will be logged, but {@link HttpServer}
+   * creation will proceed anyways.</p>
    *
    * @param host the address of the network interface to listen on;
    * may be {@code null} in which case {@code 0.0.0.0} will be used
@@ -167,6 +177,10 @@ class Producers {
    *
    * @see #produceGrizzlyHttpContainer(Instance)
    *
+   * @see <a
+   * href="https://github.com/ljnelson/microbean-jersey-container-grizzly2-http-cdi/issues/1">Issue
+   * #1</a>
+   *
    * @see GrizzlyHttpContainer
    *
    * @see GrizzlyHttpServerFactory#createHttpServer(URI,
@@ -199,7 +213,14 @@ class Producers {
       } else {
         sslEngineConfigurator = sslEngineConfiguratorInstance.get();
       }
-      returnValue = GrizzlyHttpServerFactory.createHttpServer(uri, handlerInstance.get(), secure, sslEngineConfigurator, false);
+      final GrizzlyHttpContainer container = handlerInstance.get();
+      if (container == null && logger.isWarnEnabled()) {
+        logger.warn("No GrizzlyHttpContainer present");
+      }
+      returnValue = GrizzlyHttpServerFactory.createHttpServer(uri, container, secure, sslEngineConfigurator, false);
+      if (logger.isInfoEnabled()) {
+        logger.info("Created HttpServer: {}", returnValue);
+      }
     }
     if (logger.isTraceEnabled()) {
       logger.trace("EXIT {} {} {}", Producers.class.getName(), "produceHttpServer", returnValue);
