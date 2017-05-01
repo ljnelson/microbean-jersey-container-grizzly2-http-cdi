@@ -26,6 +26,8 @@ import javax.enterprise.inject.CreationException;
 import javax.enterprise.inject.Instance;
 import javax.enterprise.inject.Produces;
 
+import javax.ws.rs.ApplicationPath;
+
 import javax.ws.rs.core.Application;
 
 import org.microbean.configuration.cdi.annotation.ConfigurationValue;
@@ -38,7 +40,7 @@ import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpContainer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 
 import org.glassfish.jersey.server.ContainerFactory;
-
+import org.glassfish.jersey.server.ResourceConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -154,7 +156,7 @@ class Producers {
    * rooted; may be {@code null} in which case {@code /} will be used
    * instead
    *
-   * @param handlerInstance an {@link Instance} {@linkplain
+   * @param containerInstance an {@link Instance} {@linkplain
    * Instance#get() housing} a {@link GrizzlyHttpContainer} instance
    * (such as might be produced by the {@link
    * #produceGrizzlyHttpContainer(Instance)} method); may be {@code
@@ -190,33 +192,87 @@ class Producers {
   @Dependent
   private static final HttpServer produceHttpServer(@ConfigurationValue(value = "host", defaultValue = "0.0.0.0") final String host,
                                                     @ConfigurationValue(value = "port", defaultValue = "8080") final int port,
-                                                    @ConfigurationValue(value = "contextPath", defaultValue = "/") final String contextPath,
-                                                    final Instance<GrizzlyHttpContainer> handlerInstance,
+                                                    @ConfigurationValue(value = "contextPath") final String contextPath,
+                                                    final Instance<GrizzlyHttpContainer> containerInstance,
                                                     @ConfigurationValue("secure") final boolean secure,
                                                     final Instance<SSLEngineConfigurator> sslEngineConfiguratorInstance) {
     if (logger.isTraceEnabled()) {
-      logger.trace("ENTRY {} {} {}, {}, {}, {}, {}, {}", Producers.class.getName(), "produceHttpServer", host, port, contextPath, handlerInstance, secure, sslEngineConfiguratorInstance);
+      logger.trace("ENTRY {} {} {}, {}, {}, {}, {}, {}", Producers.class.getName(), "produceHttpServer", host, port, contextPath, containerInstance, secure, sslEngineConfiguratorInstance);
     }
     final HttpServer returnValue;
-    if (handlerInstance == null || handlerInstance.isUnsatisfied()) {
+    if (containerInstance == null || containerInstance.isUnsatisfied()) {
       returnValue = null;
     } else {
+
+      final String applicationContextPath;
+      final GrizzlyHttpContainer container = containerInstance.get();
+      if (container == null) {
+        if (contextPath == null) {
+          applicationContextPath = "/";
+        } else {
+          applicationContextPath = contextPath;
+        }
+        if (logger.isWarnEnabled()) {
+          logger.warn("No GrizzlyHttpContainer present");
+        }
+      } else if (contextPath == null) {
+        Object application = container.getConfiguration();
+        if (application == null) {
+          applicationContextPath = "/";
+        } else {
+          ApplicationPath applicationPath = null;
+          Class<?> applicationClass = application.getClass();
+          while (applicationPath == null && applicationClass != null) {
+            if (applicationClass.isSynthetic()) {
+              applicationClass = applicationClass.getSuperclass();
+            } else {
+              applicationPath = applicationClass.getAnnotation(ApplicationPath.class);
+              if (applicationPath == null) {
+                if (application instanceof ResourceConfig) {
+                  application = ((ResourceConfig)application).getApplication();
+                  if (application == null) {
+                    applicationClass = null;
+                  } else {
+                    applicationClass = application.getClass();
+                  }
+                } else if (applicationClass.isSynthetic()) {
+                  applicationClass = applicationClass.getSuperclass();
+                } else {
+                  applicationClass = null;
+                }
+              }
+            }
+          }
+          if (applicationPath == null) {
+            applicationContextPath = "/";
+          } else {
+            final String applicationPathValue = applicationPath.value();
+            if (applicationPathValue == null || applicationPathValue.isEmpty()) {
+              applicationContextPath = "/";
+            } else {
+              applicationContextPath = applicationPathValue;
+            }
+          }
+        }
+      } else {
+        applicationContextPath = contextPath;
+      }
+      assert applicationContextPath != null;
+      
       URI uri = null;
       try {
-        uri = new URI("ignored", null /* no userInfo */, host, port, contextPath, null /* no query */, null /* no fragment */);
+        uri = new URI("ignored", null /* no userInfo */, host, port, applicationContextPath, null /* no query */, null /* no fragment */);
       } catch (final URISyntaxException uriSyntaxException) {
         throw new CreationException(uriSyntaxException);
       }
+
       final SSLEngineConfigurator sslEngineConfigurator;
       if (!secure || sslEngineConfiguratorInstance == null || sslEngineConfiguratorInstance.isUnsatisfied()) {
         sslEngineConfigurator = null;
       } else {
         sslEngineConfigurator = sslEngineConfiguratorInstance.get();
       }
-      final GrizzlyHttpContainer container = handlerInstance.get();
-      if (container == null && logger.isWarnEnabled()) {
-        logger.warn("No GrizzlyHttpContainer present");
-      }
+
       returnValue = GrizzlyHttpServerFactory.createHttpServer(uri, container, secure, sslEngineConfigurator, false);
       if (logger.isInfoEnabled()) {
         logger.info("Created HttpServer: {}", returnValue);
