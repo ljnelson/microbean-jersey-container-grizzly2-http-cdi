@@ -33,6 +33,7 @@ import javax.ws.rs.core.Application;
 import org.microbean.configuration.cdi.annotation.ConfigurationValue;
 
 import org.glassfish.grizzly.http.server.HttpServer;
+import org.glassfish.grizzly.http.server.ServerConfiguration;
 
 import org.glassfish.grizzly.ssl.SSLEngineConfigurator;
 
@@ -41,6 +42,7 @@ import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 
 import org.glassfish.jersey.server.ContainerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -144,7 +146,15 @@ class Producers {
    * Instance#isUnsatisfied() not unsatisfied} and yet may still
    * produce a {@code null} {@link GrizzlyHttpContainer}.  In this
    * case, a suitable warning will be logged, but {@link HttpServer}
-   * creation will proceed anyways.</p>
+   * creation will proceed anyways.  See (fixed) <a
+   * href="https://github.com/ljnelson/microbean-jersey-container-grizzly2-http-cdi/issues/1">issue
+   * #1</a> for more details and history.</p>
+   *
+   * @param httpServerName the name that will be {@linkplain
+   * ServerConfiguration#setName(String) assigned} to the {@link
+   * ServerConfiguration} of the {@link HttpServer} that is created;
+   * may be {@code null} in which case no such assignment will take
+   * place
    *
    * @param host the address of the network interface to listen on;
    * may be {@code null} in which case {@code 0.0.0.0} will be used
@@ -155,6 +165,15 @@ class Producers {
    * @param contextPath where the resulting web application should be
    * rooted; may be {@code null} in which case {@code /} will be used
    * instead
+   *
+   * @param allowPayloadForUndefinedHttpMethods a {@code boolean}
+   * value that is passed to the {@link
+   * ServerConfiguration#setAllowPayloadForUndefinedHttpMethods(boolean)}
+   * method
+   *
+   * @param httpServerJmxEnabled whether JMX is to be enabled in the
+   * {@link HttpServer} that is created; see {@link
+   * ServerConfiguration#setJmxEnabled(boolean)}
    *
    * @param containerInstance an {@link Instance} {@linkplain
    * Instance#get() housing} a {@link GrizzlyHttpContainer} instance
@@ -190,9 +209,12 @@ class Producers {
    */
   @Produces
   @Dependent
-  private static final HttpServer produceHttpServer(@ConfigurationValue(value = "host", defaultValue = "0.0.0.0") final String host,
+  private static final HttpServer produceHttpServer(@ConfigurationValue(value = "httpServerName") final String httpServerName,
+                                                    @ConfigurationValue(value = "host", defaultValue = "0.0.0.0") final String host,
                                                     @ConfigurationValue(value = "port", defaultValue = "8080") final int port,
                                                     @ConfigurationValue(value = "contextPath") final String contextPath,
+                                                    @ConfigurationValue(value = "allowPayloadForUndefinedHttpMethods", defaultValue = "false") final boolean allowPayloadForUndefinedHttpMethods,
+                                                    @ConfigurationValue(value = "httpServerJmxEnabled", defaultValue = "false") final boolean httpServerJmxEnabled,
                                                     final Instance<GrizzlyHttpContainer> containerInstance,
                                                     @ConfigurationValue("secure") final boolean secure,
                                                     final Instance<SSLEngineConfigurator> sslEngineConfiguratorInstance) {
@@ -274,6 +296,16 @@ class Producers {
       }
 
       returnValue = GrizzlyHttpServerFactory.createHttpServer(uri, container, secure, sslEngineConfigurator, false);
+      assert returnValue != null;
+
+      final ServerConfiguration serverConfiguration = returnValue.getServerConfiguration();
+      assert serverConfiguration != null;
+      if (httpServerName != null) {
+        serverConfiguration.setName(httpServerName);
+      }
+      serverConfiguration.setJmxEnabled(httpServerJmxEnabled);
+      serverConfiguration.setAllowPayloadForUndefinedHttpMethods(allowPayloadForUndefinedHttpMethods);
+
       if (logger.isInfoEnabled()) {
         logger.info("Created HttpServer: {}", returnValue);
       }
